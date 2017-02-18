@@ -877,6 +877,23 @@ Public Class Form1
 
     End Function
 
+    '  書名、冊数、予約数、予約順位 をログに出力
+    Private Sub outputRentalListLog()
+        Dim writer As StreamWriter
+        Dim s, bname As String
+
+        writer = New StreamWriter("rental.log", True, Encoding.GetEncoding("Shift_JIS"))
+        reslist.Clear()
+        For Each rr In reslist
+            bname = rr.name
+            bname = bname.Replace("/", " ")
+            s = bname & ";" & rr.numbook & ";" & rr.reserve & ";" & rr.order
+            writer.WriteLine(s)
+        Next
+        writer.close()
+    End Sub
+
+
     ' ********************************************************************
     '                蔵書有無チェック
     ' ********************************************************************
