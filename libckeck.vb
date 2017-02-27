@@ -115,6 +115,7 @@ Public Class Form1
     Public bookurllist As New ArrayList
     Public userlist As New ArrayList
     Public rentallist As New ArrayList
+    Public historylist As New ArrayList   '  過去データ
 
 
     Public namelist As New ArrayList
@@ -564,6 +565,7 @@ Public Class Form1
 
         System.IO.File.Delete("www.htm")
         Call getReserveOrder()
+        Call readHistoriyLog()
         Call OutputReserveList()
 
     End Sub
@@ -794,22 +796,17 @@ Public Class Form1
 
     End Sub
 
-
     ' 予約リストの結果をhtmlに出力する
     Private Sub OutputReserveList()
         Dim writer As StreamWriter
         Dim rr As reserve_t
-        Dim i As Integer
-        Dim bname, state, rt, s, strorder As String
+        Dim i, prevreserve, diff As Integer
+        Dim bname, state, rt, s, strorder, hist As String
+        Dim histitem() As String
+        Dim strreserve, preorder
 
         writer = New StreamWriter("resv_list.htm", True, Encoding.GetEncoding("Shift_JIS"))
-        'writer.WriteLine("<html><head><title>予約一覧</title></head><body>")
-        'writer.WriteLine("<style type=""text/css""><!-- A { text-decoration: none; } -->")
-        'writer.WriteLine("</style></head><body link=#000000 vlink=#000000>")
-        'writer.WriteLine("<center><b>予約一覧</b>")
-        'writer.WriteLine("&nbsp;&nbsp;&nbsp;" & logdate & "現在<br><br>")
         writer.WriteLine("<table>")
-        'writer.WriteLine("<table cellspacing=1 border=0 cellpadding=3><tr bgcolor=#fbf703 >")
         writer.WriteLine("<tr><th>No.</th><th width=450>書名</td><th>予約日</th><th>状況</th><th>貸出</th><th>冊数</th><th>予約数</th><th>順位</th><th>取置日</th></tr>")
 
         i = 0
@@ -820,32 +817,45 @@ Public Class Form1
             Else
                 writer.WriteLine("<tr bgcolor=#ffffff>")
             End If
-            bname = rr.name
-            bname = bname.Replace("/", " ")
-            state = "予約中"
-            If rr.state = 1 Then
-                state = "<b><font color=blue>受取可</font></b>"
-            End If
-            rt = rentstateToString(rr.rent)
-
+            strreserve = rr.reserve
             If rr.order = -1 Then
                 strorder = "-"
             Else
                 strorder = rr.order
             End If
 
+            hist = searchHistoriyLog(rr.code)
+            If hist <> "" Then
+                histitem = hist.Split(";")
+                prevreserve = histitem(3)    ' 以前の予約数
+                diff = rr.reserve - prevreserve
+                strreserve = rr.reserve & "(" & diff & ")"
+                preorder = histitem(4)   ' 以前の順位
+                If rr.order <> -1 Then
+                    diff = preorder - rr.order
+                    strorder = rr.order & "(" & diff & ")"
+                End If
+            End If
+            bname = rr.name
+            bname = bname.Replace("/", " ")
+            state = "予約中"
+            If rr.state = 1 Then
+                state = "<b><font color=blue>受取可</font></b>"
+            End If
+            rt = rentstateToString(rr.rent)  ' 貸し出し状況
+
+
+
             s = "<td>" & i & "</td><td width=430><a href=""" & rr.url & """ target=""_blank"">" _
                 & bname & "</a></td><td>" & rr.res_date & "</td><td>" & state & "</td><td>" _
                 & rt & "</td><td align=right>" & rr.numbook & "</td><td align=right>" _
-                & rr.reserve & "</td><td align=right>" & strorder & "</td><td align=right>" & rr.acc_date & "</td></tr>"
+                & strreserve & "</td><td align=right>" & strorder & "</td><td align=right>" & rr.acc_date & "</td></tr>"
             writer.WriteLine(s)
 
         Next
         writer.WriteLine("</table><br>")
         writer.Close()
-        'Process.Start(BOROWSER, apppath & "resv_list.htm")
-        'Call displayLogDate()
-        'Call writeLogDateList()
+
     End Sub
 
     Private Sub DisplayReserveList()
@@ -877,21 +887,56 @@ Public Class Form1
 
     End Function
 
+    '  supika
     '  書名、冊数、予約数、予約順位 をログに出力
-    Private Sub outputRentalListLog()
+    Private Sub writeHistoriyLog()
         Dim writer As StreamWriter
         Dim s, bname As String
 
-        writer = New StreamWriter("rental.log", True, Encoding.GetEncoding("Shift_JIS"))
-        reslist.Clear()
+        ' 上書き
+        writer = New StreamWriter("rental.log", False, Encoding.GetEncoding("Shift_JIS"))
+
         For Each rr In reslist
             bname = rr.name
             bname = bname.Replace("/", " ")
-            s = bname & ";" & rr.numbook & ";" & rr.reserve & ";" & rr.order
+            s = bname & ";" & rr.code & ";" & rr.numbook & ";" & rr.reserve & ";" & rr.order
             writer.WriteLine(s)
         Next
         writer.close()
     End Sub
+
+    ' 履歴データの読み込み
+    Private Sub readHistoriyLog()
+        Dim reader As StreamReader
+        Dim s, save, logdate As String
+        Dim item As String()
+
+        historylist.clear()
+
+        reader = New StreamReader("rental.log", Encoding.GetEncoding("Shift_JIS"))
+        Do Until reader.EndOfStream
+            s = reader.ReadLine()
+            historylist.add(s)
+        Loop
+        reader.Close()
+
+    End Sub
+
+    '  履歴データから指定したコードの本を検索する
+    Private Function searchHistoriyLog(code As String)
+        Dim reader As StreamReader
+        Dim s, save, logdate As String
+        Dim item As String()
+
+        s = ""
+        For Each s In historylist
+            If s.IndexOf(code) <> -1 Then   ' 見つかった
+                Return s
+            End If
+        Next
+        Return ""
+    End Function
+
 
 
     ' ********************************************************************
@@ -1408,5 +1453,9 @@ Public Class Form1
     ' 貸出状況ログ表示
     Private Sub cmd_rental_log_Click(sender As System.Object, e As System.EventArgs) Handles cmd_rental_log.Click
         Call displayRentalListLog()
+    End Sub
+
+    Private Sub cmd_historylog_Click(sender As System.Object, e As System.EventArgs) Handles cmd_historylog.Click
+        Call writeHistoriyLog()
     End Sub
 End Class
