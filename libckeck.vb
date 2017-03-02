@@ -116,6 +116,7 @@ Public Class Form1
     Public userlist As New ArrayList
     Public rentallist As New ArrayList
     Public historylist As New ArrayList   '  過去データ
+    Public cur_user As String    ' 処理中のユーザ
 
 
     Public namelist As New ArrayList
@@ -541,9 +542,14 @@ Public Class Form1
 
     Private Sub ReserveList()
         Dim u As user_t
+        Dim i As Integer
+
         Call OutputHeader()
+        i = 0
         For Each u In userlist
+            cur_user = i
             Call ReserveListCommon(u.id, u.pass)
+            i = i + 1
         Next
         Call DisplayReserveList()
         lbl_state.Text = "終了"
@@ -565,7 +571,6 @@ Public Class Form1
 
         System.IO.File.Delete("www.htm")
         Call getReserveOrder()
-        Call readHistoriyLog()
         Call OutputReserveList()
 
     End Sub
@@ -617,7 +622,7 @@ Public Class Form1
                         If s.IndexOf("未定") >= 0 Then
                             res.acc_date = ""
                         Else
-                            s = s.Replace("〜", "")
+                            s = s.Replace("～", "")
                             s = s.Trim
                             res.acc_date = s
 
@@ -805,6 +810,8 @@ Public Class Form1
         Dim histitem() As String
         Dim strreserve, preorder
 
+        Call readHistoriyLog()     ' add
+
         writer = New StreamWriter("resv_list.htm", True, Encoding.GetEncoding("Shift_JIS"))
         writer.WriteLine("<table>")
         writer.WriteLine("<tr><th>No.</th><th width=450>書名</td><th>予約日</th><th>状況</th><th>貸出</th><th>冊数</th><th>予約数</th><th>順位</th><th>取置日</th></tr>")
@@ -828,12 +835,12 @@ Public Class Form1
             If hist <> "" Then
                 histitem = hist.Split(";")
                 prevreserve = histitem(3)    ' 以前の予約数
-                diff = rr.reserve - prevreserve
-                strreserve = rr.reserve & "(" & diff & ")"
+
+                strreserve = rr.reserve & "(" & prevreserve & ")"
                 preorder = histitem(4)   ' 以前の順位
-                If rr.order <> -1 Then
-                    diff = preorder - rr.order
-                    strorder = rr.order & "(" & diff & ")"
+                If rr.order <> -1 And preorder <> -1 Then  ' 現在、過去の順位が未定でない
+
+                    strorder = rr.order & "(" & preorder & ")"
                 End If
             End If
             bname = rr.name
@@ -855,6 +862,7 @@ Public Class Form1
         Next
         writer.WriteLine("</table><br>")
         writer.Close()
+        Call writeHistoriyLog()
 
     End Sub
 
@@ -891,10 +899,24 @@ Public Class Form1
     '  書名、冊数、予約数、予約順位 をログに出力
     Private Sub writeHistoriyLog()
         Dim writer As StreamWriter
-        Dim s, bname As String
+        Dim s, bname, fname As String
+        Dim mtime, curdate As datetime
 
-        ' 上書き
-        writer = New StreamWriter("rental.log", False, Encoding.GetEncoding("Shift_JIS"))
+
+        fname = "rentalcur" & cur_user & ".log"
+        If System.IO.File.Exists(fname) = True Then   ' 存在したら
+            '更新日時の取得
+            mtime = System.IO.File.GetLastWriteTime(fname)
+            curdate = System.DateTime.Today
+            If DateDiff("d", mtime, curdate) <= 4 Then  ' 以前のログより4日以内ならなにもしない
+                Exit Sub
+            End If
+            '  以前のファイルは  rentalhist0.log に rename
+            System.IO.File.Move(fname, "rentalhist" & cur_user & ".log")
+
+        End If
+
+        writer = New StreamWriter(fname, False, Encoding.GetEncoding("Shift_JIS"))
 
         For Each rr In reslist
             bname = rr.name
@@ -908,12 +930,17 @@ Public Class Form1
     ' 履歴データの読み込み
     Private Sub readHistoriyLog()
         Dim reader As StreamReader
-        Dim s, save, logdate As String
+        Dim s, save, logdate, fname As String
         Dim item As String()
 
         historylist.clear()
 
-        reader = New StreamReader("rental.log", Encoding.GetEncoding("Shift_JIS"))
+        fname = "rentalhist" & cur_user & ".log"
+        If System.IO.File.Exists(fname) = False Then   ' ファイルがない場合はreturn
+            Exit Sub
+        End If
+
+        reader = New StreamReader(fname, Encoding.GetEncoding("Shift_JIS"))
         Do Until reader.EndOfStream
             s = reader.ReadLine()
             historylist.add(s)
