@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "1.42"
+    Public Const VERSION As String = "2.00"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -1482,7 +1482,5 @@ Public Class Form1
         Call displayRentalListLog()
     End Sub
 
-    Private Sub cmd_historylog_Click(sender As System.Object, e As System.EventArgs) Handles cmd_historylog.Click
-        Call writeHistoriyLog()
-    End Sub
+ 
 End Class
