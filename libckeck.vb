@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.00"
+    Public Const VERSION As String = "2.01"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -912,6 +912,7 @@ Public Class Form1
                 Exit Sub
             End If
             '  以前のファイルは  rentalhist0.log に rename
+            System.IO.File.Delete("rentalhist" & cur_user & ".log")
             System.IO.File.Move(fname, "rentalhist" & cur_user & ".log")
 
         End If
