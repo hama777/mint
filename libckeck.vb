@@ -727,10 +727,9 @@ Public Class Form1
         Dim reader As StreamReader
         Dim rr As reserve_t
         Dim s, item As String
-        Dim r, r_url As Regex
+        Dim r As Regex
         Dim m As Match
         Dim line, cnt As Integer
-
 
         r = New Regex("<td>(.*?)</td>")
 
@@ -756,9 +755,7 @@ Public Class Form1
                     cnt += 1
                     line = 0
                 End If
-
             End If
-
         Loop
         reader.Close()
 
@@ -805,16 +802,19 @@ Public Class Form1
     Private Sub OutputReserveList()
         Dim writer As StreamWriter
         Dim rr As reserve_t
-        Dim i, prevreserve, diff As Integer
+        Dim i, prevreserve, estimate_week, diff As Integer
         Dim bname, state, rt, s, strorder, hist As String
         Dim histitem() As String
-        Dim strreserve, preorder
+        Dim strreserve, preorder As String
+        Dim estimate_date As String
 
         Call readHistoriyLog()     ' add
 
         writer = New StreamWriter("resv_list.htm", True, Encoding.GetEncoding("Shift_JIS"))
         writer.WriteLine("<table>")
-        writer.WriteLine("<tr><th>No.</th><th width=450>書名</td><th>予約日</th><th>状況</th><th>貸出</th><th>冊数</th><th>予約数</th><th>順位</th><th>取置日</th></tr>")
+        writer.WriteLine("<tr><th>No.</th><th width=450>書名</td><th>予約日</th><th>状況</th>")
+        writer.WriteLine("<th>貸出</th><th>冊数</th><th>予約数</th><th>順位</th>")
+        writer.WriteLine("<th>予測日</th><th>取置日</th></tr>")
 
         i = 0
         For Each rr In reslist
@@ -831,6 +831,7 @@ Public Class Form1
                 strorder = rr.order
             End If
 
+            estimate_date = ""
             hist = searchHistoriyLog(rr.code)
             If hist <> "" Then
                 histitem = hist.Split(";")
@@ -841,6 +842,14 @@ Public Class Form1
                 If rr.order <> -1 And preorder <> -1 Then  ' 現在、過去の順位が未定でない
 
                     strorder = rr.order & "(" & preorder & ")"
+                    '  受け取り予測日の計算
+                    '  前週からの順位差分で今の順位を割る
+                    '  2週前くらいのほうが精度がよりかもしれない
+                    diff = (preorder - rr.order)
+                    If diff <> 0 Then
+                        estimate_week = rr.order / diff
+                        estimate_date = System.DateTime.Today.AddDays(estimate_week * 7).ToString("MM/dd")
+                    End If
                 End If
             End If
             bname = rr.name
@@ -851,12 +860,11 @@ Public Class Form1
             End If
             rt = rentstateToString(rr.rent)  ' 貸し出し状況
 
-
-
             s = "<td>" & i & "</td><td width=430><a href=""" & rr.url & """ target=""_blank"">" _
                 & bname & "</a></td><td>" & rr.res_date & "</td><td>" & state & "</td><td>" _
                 & rt & "</td><td align=right>" & rr.numbook & "</td><td align=right>" _
-                & strreserve & "</td><td align=right>" & strorder & "</td><td align=right>" & rr.acc_date & "</td></tr>"
+                & strreserve & "</td><td align=right>" & strorder & "</td><td align=right>" _
+                & estimate_date & "</td><td>" & rr.acc_date & "</td></tr>"
             writer.WriteLine(s)
 
         Next
@@ -889,9 +897,7 @@ Public Class Form1
                 rentstateToString = "受入中"
             Case Else
                 rentstateToString = "エラー"
-
         End Select
-
 
     End Function
 
@@ -902,13 +908,14 @@ Public Class Form1
         Dim s, bname, fname As String
         Dim mtime, curdate As datetime
 
-
         fname = "rentalcur" & cur_user & ".log"
         If System.IO.File.Exists(fname) = True Then   ' 存在したら
             '更新日時の取得
             mtime = System.IO.File.GetLastWriteTime(fname)
             curdate = System.DateTime.Today
-            If DateDiff("d", mtime, curdate) <= 4 Then  ' 以前のログより4日以内ならなにもしない
+            '  火曜始まりの週番号が同じならファイルは出力しない
+            '  順位が毎週火曜日に更新されるので
+            If DatePart("ww", curdate, vbTuesday) = DatePart("ww", mtime, vbTuesday) Then
                 Exit Sub
             End If
             '  以前のファイルは  rentalhist0.log に rename
@@ -931,8 +938,7 @@ Public Class Form1
     ' 履歴データの読み込み
     Private Sub readHistoriyLog()
         Dim reader As StreamReader
-        Dim s, save, logdate, fname As String
-        Dim item As String()
+        Dim s, fname As String
 
         historylist.clear()
 
@@ -952,9 +958,7 @@ Public Class Form1
 
     '  履歴データから指定したコードの本を検索する
     Private Function searchHistoriyLog(code As String)
-        Dim reader As StreamReader
-        Dim s, save, logdate As String
-        Dim item As String()
+        Dim s As String
 
         s = ""
         For Each s In historylist
@@ -964,7 +968,6 @@ Public Class Form1
         Next
         Return ""
     End Function
-
 
 
     ' ********************************************************************
