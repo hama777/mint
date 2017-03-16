@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.01"
+    Public Const VERSION As String = "2.02"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -116,6 +116,7 @@ Public Class Form1
     Public userlist As New ArrayList
     Public rentallist As New ArrayList
     Public historylist As New ArrayList   '  過去データ
+    Public historylist2 As New ArrayList   '  過去データ
     Public cur_user As String    ' 処理中のユーザ
 
 
@@ -802,9 +803,8 @@ Public Class Form1
     Private Sub OutputReserveList()
         Dim writer As StreamWriter
         Dim rr As reserve_t
-        Dim i, prevreserve, estimate_week, diff As Integer
-        Dim bname, state, rt, s, strorder, hist As String
-        Dim histitem() As String
+        Dim i, prevreserve As Integer
+        Dim bname, state, rt, s, strorder As String
         Dim strreserve, preorder As String
         Dim estimate_date As String
 
@@ -825,33 +825,15 @@ Public Class Form1
                 writer.WriteLine("<tr bgcolor=#ffffff>")
             End If
             strreserve = rr.reserve
-            If rr.order = -1 Then
-                strorder = "-"
-            Else
-                strorder = rr.order
-            End If
+            strorder = rr.order
+            If rr.order = -1 Then strorder = "-"
 
-            estimate_date = ""
-            hist = searchHistoriyLog(rr.code)
-            If hist <> "" Then
-                histitem = hist.Split(";")
-                prevreserve = histitem(3)    ' 以前の予約数
+            '  履歴データの処理  
+            Call manageHistotyData(rr, prevreserve, preorder, estimate_date)
 
-                strreserve = rr.reserve & "(" & prevreserve & ")"
-                preorder = histitem(4)   ' 以前の順位
-                If rr.order <> -1 And preorder <> -1 Then  ' 現在、過去の順位が未定でない
+            If prevreserve <> -1 Then strreserve = rr.reserve & "(" & prevreserve & ")"
+            If preorder <> -1 Then strorder = rr.order & "(" & preorder & ")"
 
-                    strorder = rr.order & "(" & preorder & ")"
-                    '  受け取り予測日の計算
-                    '  前週からの順位差分で今の順位を割る
-                    '  2週前くらいのほうが精度がよりかもしれない
-                    diff = (preorder - rr.order)
-                    If diff <> 0 Then
-                        estimate_week = rr.order / diff
-                        estimate_date = System.DateTime.Today.AddDays(estimate_week * 7).ToString("MM/dd")
-                    End If
-                End If
-            End If
             bname = rr.name
             bname = bname.Replace("/", " ")
             state = "予約中"
@@ -903,13 +885,14 @@ Public Class Form1
 
     '  supika
     '  書名、冊数、予約数、予約順位 をログに出力
+    '  ログの形式  hist<ユーザID>_n.log
     Private Sub writeHistoriyLog()
         Dim writer As StreamWriter
         Dim s, bname, fname As String
         Dim mtime, curdate As datetime
 
-        fname = "rentalcur" & cur_user & ".log"
-        If System.IO.File.Exists(fname) = True Then   ' 存在したら
+        fname = "hist" & cur_user & "_0.log"    ' 最新の世代
+        If System.IO.File.Exists(fname) = True Then   ' 最新の世代が存在したら
             '更新日時の取得
             mtime = System.IO.File.GetLastWriteTime(fname)
             curdate = System.DateTime.Today
@@ -918,10 +901,8 @@ Public Class Form1
             If DatePart("ww", curdate, vbTuesday) = DatePart("ww", mtime, vbTuesday) Then
                 Exit Sub
             End If
-            '  以前のファイルは  rentalhist0.log に rename
-            System.IO.File.Delete("rentalhist" & cur_user & ".log")
-            System.IO.File.Move(fname, "rentalhist" & cur_user & ".log")
-
+            '  出力する前に現在のファイルを世代管理する
+            Call histfileGenaration()
         End If
 
         writer = New StreamWriter(fname, False, Encoding.GetEncoding("Shift_JIS"))
@@ -935,14 +916,111 @@ Public Class Form1
         writer.close()
     End Sub
 
+    '  履歴データの処理
+    '  入力  rr  レンタルリスト
+    '  出力  prevreserve  以前の予約数   preorder  以前の順位    estimate_date  受け取り予測日
+    Private Sub manageHistotyData(rr As reserve_t, ByRef prevreserve As Integer, ByRef preorder As Integer, ByRef estimate_date As String)
+        Dim histitem() As String
+        Dim calcoder As Integer  '  予測日計算のための過去順位
+        Dim hist As String
+        Dim gen, diff As Integer
+        Dim estimate_week As Double
+
+        estimate_date = ""
+        prevreserve = -1
+        preorder = -1
+        hist = searchHistoriyLog(rr.code)
+        If hist = "" Then Exit Sub
+
+        histitem = hist.Split(";")
+        prevreserve = histitem(3)    ' 以前の予約数
+
+        preorder = histitem(4)   ' 以前の順位
+
+        ' 現在、または過去の順位が未定なら予測日は求められないので exit
+        If rr.order = -1 Or preorder = -1 Then Exit Sub
+
+        '  受け取り予測日の計算
+        calcoder = searchOrder(rr.code) ' 2世代前の履歴から順位を検索
+        gen = 2
+        If calcoder = -1 Then
+            calcoder = preorder   ' 2世代前のファイルがない場合は1世代前のを計算に使う
+            gen = 1
+        End If
+
+        diff = (calcoder - rr.order)
+        If diff <> 0 Then
+            ' 現在の順位が0になるのは何週目か
+            estimate_week = rr.order / diff
+            ' 1世代前なら 7日 2世代前なら 14日 で
+            ' ただし、2世代前が14日前とは限らないので、変更が必要。
+            estimate_date = System.DateTime.Today.AddDays(estimate_week * 7 * gen).ToString("MM/dd")
+        End If
+
+    End Sub
+
+    '  hist ファイルの世代管理
+    Private Sub histfileGenaration()
+        Dim max_gen As Integer    ' 世代 n をいくつまで保存するか
+        Dim i As Integer
+        Dim fname As String
+
+        max_gen = 2      '  とりあえず 0 1 2 のみ
+        For i = max_gen To 0 Step -1
+            fname = "hist" & cur_user & "_" & i & ".log"
+            If System.IO.File.Exists(fname) = True Then   ' 存在したら
+                If i = max_gen Then    ' 最終世代なら消すだけ
+                    System.IO.File.Delete(fname)
+                Else     ' 最終世代でないなら1つ世代を進める
+                    System.IO.File.Move(fname, "hist" & cur_user & "_" & i + 1 & ".log")
+                End If
+            End If
+        Next
+    End Sub
+
+
     ' 履歴データの読み込み
     Private Sub readHistoriyLog()
         Dim reader As StreamReader
-        Dim s, fname As String
+        Dim s, fname, oldfname As String
+        Dim gen As Integer     '  どの世代を受け取り予測日計算に使うか
+        Dim i, read_gen As Integer
+        Dim mtime, curdate As DateTime
 
         historylist.clear()
 
-        fname = "rentalhist" & cur_user & ".log"
+        fname = "hist" & cur_user & "_0.log"    ' 最新の世代
+        If System.IO.File.Exists(fname) = False Then   ' ファイルがない場合はreturn
+            Exit Sub
+        End If
+
+        read_gen = 0  ' readする世代
+        mtime = System.IO.File.GetLastWriteTime(fname)
+        curdate = System.DateTime.Today
+        '  火曜始まりの週番号が同じなら1世代前のファイルを対象にする。
+        '  順位が毎週火曜日に更新されるので
+        If DatePart("ww", curdate, vbTuesday) = DatePart("ww", mtime, vbTuesday) Then
+            oldfname = "hist" & cur_user & "_1.log"
+            If System.IO.File.Exists(oldfname) = True Then ' ファイルがある場合は1世代前
+                read_gen = 1
+                fname = oldfname
+            End If
+        End If
+
+        reader = New StreamReader(fname, Encoding.GetEncoding("Shift_JIS"))
+        Do Until reader.EndOfStream
+            s = reader.ReadLine()
+            historylist.add(s)
+        Loop
+        reader.Close()
+
+        '  受け取り予測日計算のためにさらに以前のhistファイルを読み、historylist2 に格納
+        '  この時点で read_gen は 0 or 1 、よって読むファイルは 1 or 2 
+
+        read_gen = read_gen + 1
+        fname = "hist" & cur_user & "_" & read_gen & ".log"
+
+        historylist2.clear()
         If System.IO.File.Exists(fname) = False Then   ' ファイルがない場合はreturn
             Exit Sub
         End If
@@ -950,7 +1028,7 @@ Public Class Form1
         reader = New StreamReader(fname, Encoding.GetEncoding("Shift_JIS"))
         Do Until reader.EndOfStream
             s = reader.ReadLine()
-            historylist.add(s)
+            historylist2.add(s)
         Loop
         reader.Close()
 
@@ -967,6 +1045,21 @@ Public Class Form1
             End If
         Next
         Return ""
+    End Function
+
+    '  
+    Private Function searchOrder(code As String)
+        Dim s As String
+        Dim item() As String
+
+        s = ""
+        For Each s In historylist2
+            If s.IndexOf(code) <> -1 Then   ' 見つかった
+                item = s.split(";")
+                Return Integer.Parse(item(4))   ' 順位
+            End If
+        Next
+        Return -1
     End Function
 
 
