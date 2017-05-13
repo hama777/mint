@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.02"
+    Public Const VERSION As String = "2.03"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -11,7 +11,6 @@ Public Class Form1
     Public Const BOOKURL2 = "&mode=one_line&kobeid=PV%3A"
     Public Const MAGURL = "https://www.lib.city.kobe.jp/opac/opacs/magazine_detail?type=CtlgMagazine&kobeid=CT%3A"
     Public Const RENTALLISTURL = "https://www.lib.city.kobe.jp/opac/opacs/lending_display"
-
 
     Public Const BUFSIZE As Integer = 4096
     Public Const BOROWSER As String = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
@@ -105,7 +104,6 @@ Public Class Form1
 
     Dim logdatetbl As Hashtable = New Hashtable
 
-
     Public mag As mag_t
     Public user As user_t
     Public res As reserve_t    ' 予約リスト構造体
@@ -119,10 +117,8 @@ Public Class Form1
     Public historylist2 As New ArrayList   '  過去データ
     Public cur_user As String    ' 処理中のユーザ
 
-
     Public namelist As New ArrayList
     Public maglist As New ArrayList
-
     Public wishlist As New ArrayList
     Public ineterr As Integer
     Public apppath As String
@@ -150,7 +146,6 @@ Public Class Form1
 
         logdate = Format(System.DateTime.Now, "yy/MM/dd HH:mm ")
 
-
         reader = New StreamReader("rentalheader.htm", Encoding.GetEncoding("Shift_JIS"))
         writer = New StreamWriter("rental_list.htm", False, Encoding.GetEncoding("Shift_JIS"))
         Do Until reader.EndOfStream
@@ -163,7 +158,6 @@ Public Class Form1
     End Sub
 
     Private Sub RentalListCommon(userid As String, pass As String)
-
         Dim ret As Integer
 
         lbl_state.Text = "ログイン中"
@@ -175,11 +169,9 @@ Public Class Form1
         Me.Refresh()
         Call AnalizeRenatlList()
 
-
         System.IO.File.Delete("www.htm")
         'Call getReserveOrder()
         Call OutputRenatalList()
-
     End Sub
 
     Private Sub AnalizeRenatlList()
@@ -227,15 +219,12 @@ Public Class Form1
                         rentallist.Add(rental)
 
                 End Select
-
             End If
             If s.IndexOf("</tr>") >= 0 Then
                 st = 0
             End If
-
         Loop
         reader.Close()
-
     End Sub
 
     Private Sub OutputRenatalList()
@@ -263,17 +252,10 @@ Public Class Form1
             limit_date = DateTime.Parse(s)
             limit = limit_date.ToString("MM/dd (ddd)")
 
-
-
             strreserve = ""
-            If rr.reserve = True Then
-                strreserve = "あり"
-
-            End If
+            If rr.reserve = True Then  strreserve = "あり"
             strexpand = ""
-            If rr.extend = True Then
-                strexpand = "延長済み"
-            End If
+            If rr.extend = True Then  strexpand = "延長済み"
 
             s = "<td>" & i & "</td><td width=450>" _
                 & rr.name & "</a></td><td>" & limit & "</td><td>" & strreserve & "</td><td>" _
@@ -293,8 +275,6 @@ Public Class Form1
         writer.Close()
 
         Process.Start(BOROWSER, apppath & "rental_list.htm")
-
-
     End Sub
 
     Private Sub displayRentalListLog()
@@ -331,9 +311,7 @@ Public Class Form1
         sdate = System.DateTime.Now.AddDays(-180)    '  半年前
         'sdate = System.DateTime.Now.AddDays(-30)    '  テスト用
         checkstartdate = (sdate.Year - 2000) * 100 + sdate.Month
-
     End Sub
-
 
     ' 貸出状況、冊数、予約数を取得する
 
@@ -359,7 +337,6 @@ Public Class Form1
             If ww.code <> "" Then   ' PVコード指定があればそれを優先
                 detailurl = pvcodeToUrl(ww.code)   ' PVコードからURL作成
                 foundstate = CFOUND
-
             Else
                 detailurl = searchBookUrl(ww.name)    ' 以前のURLが存在するか検索
                 If detailurl = "" Then                ' なければ書名から検索して本のURLを得る
@@ -388,22 +365,14 @@ Public Class Form1
                 ww.numbook = n
                 ww.reserve = r
             Else
-                If foundstate = CNOTFOUND Then
-                    ww.rentstate = -1
-                End If
-                If foundstate = CFOUNDDUP Then
-                    ww.rentstate = -2
-                End If
-                If foundstate = CERROR Then
-                    ww.rentstate = -3
-                End If
+                If foundstate = CNOTFOUND Then  ww.rentstate = -1
+                If foundstate = CFOUNDDUP Then  ww.rentstate = -2
+                If foundstate = CERROR Then ww.rentstate = -3
                 ww.numbook = -1
                 ww.reserve = -1
             End If
             wishlist(i) = ww
-
         Next
-
     End Sub
 
     ' boolurl.txt ファイルを更新する
@@ -419,7 +388,6 @@ Public Class Form1
             End If
         Next
         writer.Close()
-
     End Sub
 
     Private Sub outputWishlist()
@@ -435,7 +403,6 @@ Public Class Form1
         If checkstartdate <> 0 Then    ' 期間短縮版
             outfile = "wishlist2.htm"
             logdatetbl("wishshort") = logdate
-
         Else
             logdatetbl("wishlong") = logdate
         End If
@@ -522,11 +489,11 @@ Public Class Form1
         Next
         searchBookUrl = ""
     End Function
+
     Private Function pvcodeToUrl(c As String)
         pvcodeToUrl = "https://www.lib.city.kobe.jp/opac/opacs/find_detailbook?kobeid=PV%3A" & c & _
             "&amp;type=CtlgBook&amp;pvolid=PV%3A" & c & _
             "&amp;mode=one_line"
-
     End Function
 
     ' ********************************************************************
@@ -554,8 +521,8 @@ Public Class Form1
         Next
         Call DisplayReserveList()
         lbl_state.Text = "終了"
-
     End Sub
+
     Private Sub ReserveListCommon(userid As String, pass As String)
         Dim ckurl As String
         Dim ret As Integer
@@ -571,10 +538,11 @@ Public Class Form1
         Call SearchReserveCount()
 
         System.IO.File.Delete("www.htm")
-        Call getReserveOrder()
+        if getReserveOrder() = -1 then  exit sub 
         Call OutputReserveList()
 
     End Sub
+
     ' 予約リストのhtml 解析
     Private Sub AnalizeReserveList()
         Dim reader As StreamReader
@@ -626,20 +594,16 @@ Public Class Form1
                             s = s.Replace("～", "")
                             s = s.Trim
                             res.acc_date = s
-
                         End If
                         reslist.Add(res)
-
                 End Select
 
             End If
             If s.IndexOf("</tr>") >= 0 Then
                 st = 0
             End If
-
         Loop
         reader.Close()
-
     End Sub
 
     ' 予約リストの詳細(冊数、予約数)を調べる
@@ -668,23 +632,18 @@ Public Class Form1
             rr.rent = st
             rr.numbook = n
             rr.reserve = r
-
-
-
             reslist(i) = rr
             lbl_state.Text = "検索中 " & i + 1 & " / " & cnt
             Me.Refresh()
         Next
-
     End Sub
 
     ' 予約順位を取得する     2015/08/19
-    Private Sub getReserveOrder()
+    Private function getReserveOrder()
         Dim rr As reserve_t
         Dim burl As String
         Dim cnt, i, checkok, ret As Integer
         Dim urltop As String = "https://www.lib.city.kobe.jp/opac/opacs/reservation_cancel_confirmation?reservation_order_confirmation=%e9%a0%86%e4%bd%8d%e7%a2%ba%e8%aa%8d"
-
 
         lbl_state.Text = "予約順位取得中 "
         Me.Refresh()
@@ -699,27 +658,30 @@ Public Class Form1
         ret = siteAccess(burl)
         If ret = -1 Then
             MsgBox("予約順位アクセスエラー ")
-            Exit Sub
+            getReserveOrder = -1
+            Exit function
         End If
         System.Threading.Thread.Sleep(10000)
         checkok = 0
-        For i = 1 To 20
+        For i = 1 To 10     ' 10回(100sec)リトライ
             If System.IO.File.Exists("www.htm") Then
                 checkok = 1
                 Exit For
             End If
-
             System.Threading.Thread.Sleep(10000)
         Next
-        If checkok = 1 Then
+
+        If checkok = 1 Then   '  出力ファイルが存在したら
             Call analizeOrderHtml()
             lbl_state.Text = "予約順位完了 "
         Else
             MsgBox("予約順位取得エラー ")
+            getReserveOrder = -1
+            Exit function
         End If
         Me.Refresh()
-
-    End Sub
+        getReserveOrder = 0
+    End function
 
     Private Sub analizeOrderHtml()
 
@@ -759,9 +721,7 @@ Public Class Form1
             End If
         Loop
         reader.Close()
-
     End Sub
-
 
     ' 書名から雑誌コードを検索する
     Private Function searchMagCode(name As String)
@@ -774,7 +734,6 @@ Public Class Form1
             End If
         Next
         searchMagCode = ""
-
     End Function
 
     Private Sub OutputHeader()
@@ -785,7 +744,6 @@ Public Class Form1
         logdate = Format(System.DateTime.Now, "yy/MM/dd HH:mm ")
         logdatetbl("resv") = logdate
 
-
         reader = New StreamReader("header.htm", Encoding.GetEncoding("Shift_JIS"))
         writer = New StreamWriter("resv_list.htm", False, Encoding.GetEncoding("Shift_JIS"))
         Do Until reader.EndOfStream
@@ -795,8 +753,6 @@ Public Class Form1
         writer.WriteLine("&nbsp;&nbsp;&nbsp;<span style=font-size: 11pt >" & logdate & "現在</span><br><br>")
         reader.Close()
         writer.Close()
-
-
     End Sub
 
     ' 予約リストの結果をhtmlに出力する
@@ -868,7 +824,6 @@ Public Class Form1
         Call writeLogDateList()
     End Sub
 
-
     Private Function rentstateToString(rst As Integer)
         Select Case rst
             Case 0
@@ -934,7 +889,6 @@ Public Class Form1
 
         histitem = hist.Split(";")
         prevreserve = histitem(3)    ' 以前の予約数
-
         preorder = histitem(4)   ' 以前の順位
 
         ' 現在、または過去の順位が未定なら予測日は求められないので exit
@@ -1094,9 +1048,7 @@ Public Class Form1
             lbl_state.Text = "検索中 " & i & "/" & cnt
             Me.Refresh()
 
-
             Call searchByBookName(bname)
-
             If ineterr = 1 Then
                 status = -1
             Else
@@ -1112,20 +1064,19 @@ Public Class Form1
                 Case 2
                     s = "DUP    " & bname
                     dup = dup + 1
-
             End Select
-            If s <> "" Then
-                writer.WriteLine(s)
-            End If
+            If s <> "" Then  writer.WriteLine(s)
         Next
         writer.Close()
         Call displayLogDate()
         Call writeLogDateList()
         lbl_state.Text = "終了 hit= " & hit & "  dup= " & dup
     End Sub
+
     Private Sub displayStokLog()
         Process.Start(EDITOR, apppath & "libreport.txt")
     End Sub
+
     Private Sub displayResvLog()
         Process.Start(BOROWSER, apppath & "resv_list.htm")
 
@@ -1213,8 +1164,6 @@ Public Class Form1
         cn.Close()
         command.Dispose()
         cn.Dispose()
-
-
     End Sub
 
     ' 書名を検索し、結果をwww.htmファイルに出力する
@@ -1230,8 +1179,8 @@ Public Class Form1
         If ret <> 0 Then
             ineterr = 1
         End If
-
     End Sub
+
     ' 第1レベル(検索結果)  HTMLの分析
     Private Sub analizeFirst(ByRef foundstate As Integer, ByRef bookurl As String)
         ' 出力
@@ -1242,7 +1191,6 @@ Public Class Form1
         Dim s, nb As String
         Dim r, r_url As Regex
         Dim m As Match
-
         Dim first As Integer
 
         first = 0
@@ -1253,7 +1201,6 @@ Public Class Form1
         reader = New StreamReader("www.htm", Encoding.GetEncoding("utf-8"))
         Do Until reader.EndOfStream
             s = reader.ReadLine()
-
             m = r.Match(s)
             If m.Success Then
                 nb = m.Groups(1).Value
@@ -1278,8 +1225,8 @@ Public Class Form1
             End If
         Loop
         reader.Close()
-
     End Sub
+
     ' 第2レベル(検索結果)  HTMLの分析
     Private Sub analizeSecond(burl As String, ByRef status As Integer, ByRef n As Integer, ByRef r As Integer, mag As Integer)
         ' 引数
@@ -1444,6 +1391,7 @@ Public Class Form1
         Call displayLogDate()
         Call readUserID()
     End Sub
+
     ' ID読み込み
     Private Sub readUserID()
         Dim reader As StreamReader
@@ -1553,7 +1501,6 @@ Public Class Form1
     Private Sub Button1_Click(sender As System.Object, e As System.EventArgs) Handles cmd_stok.Click
         Call checkStok()
     End Sub
-
     Private Sub cmd_test_Click(sender As System.Object, e As System.EventArgs)
         Call accessBookDB(1)
     End Sub
@@ -1564,9 +1511,7 @@ Public Class Form1
     ' 予約一覧ログ表示
     Private Sub cmd_resv_log_Click(sender As System.Object, e As System.EventArgs) Handles cmd_resv_log.Click
         Call displayResvLog()
-
     End Sub
-
     Private Sub cmd_display_stok_Click(sender As System.Object, e As System.EventArgs) Handles cmd_display_wish.Click
         Call displayWishLog()
     End Sub
@@ -1578,6 +1523,4 @@ Public Class Form1
     Private Sub cmd_rental_log_Click(sender As System.Object, e As System.EventArgs) Handles cmd_rental_log.Click
         Call displayRentalListLog()
     End Sub
-
- 
 End Class
