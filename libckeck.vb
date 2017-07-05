@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.03"
+    Public Const VERSION As String = "2.04"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -124,6 +124,7 @@ Public Class Form1
     Public apppath As String
     Public cnt_rental_ok As Integer
     Public checkstartdate As Integer   ' お気に入りチェック開始年月
+    Public get_order As Boolean    '  true の時、予約リストで順位を取得する
 
     ' ********************************************************************
     '                貸出状況リスト
@@ -197,7 +198,7 @@ Public Class Form1
                     Case 3
                         m = r_element.Match(s)
                         rental.name = m.Groups(1).Value    ' 書名
-              
+
                     Case 4
                         m = r_element.Match(s)
                         rental.limit = m.Groups(1).Value   ' 期限
@@ -253,9 +254,9 @@ Public Class Form1
             limit = limit_date.ToString("MM/dd (ddd)")
 
             strreserve = ""
-            If rr.reserve = True Then  strreserve = "あり"
+            If rr.reserve = True Then strreserve = "あり"
             strexpand = ""
-            If rr.extend = True Then  strexpand = "延長済み"
+            If rr.extend = True Then strexpand = "延長済み"
 
             s = "<td>" & i & "</td><td width=450>" _
                 & rr.name & "</a></td><td>" & limit & "</td><td>" & strreserve & "</td><td>" _
@@ -365,8 +366,8 @@ Public Class Form1
                 ww.numbook = n
                 ww.reserve = r
             Else
-                If foundstate = CNOTFOUND Then  ww.rentstate = -1
-                If foundstate = CFOUNDDUP Then  ww.rentstate = -2
+                If foundstate = CNOTFOUND Then ww.rentstate = -1
+                If foundstate = CFOUNDDUP Then ww.rentstate = -2
                 If foundstate = CERROR Then ww.rentstate = -3
                 ww.numbook = -1
                 ww.reserve = -1
@@ -537,8 +538,10 @@ Public Class Form1
         Call AnalizeReserveList()
         Call SearchReserveCount()
 
-        System.IO.File.Delete("www.htm")
-        if getReserveOrder() = -1 then  exit sub 
+        If get_order = True Then
+            System.IO.File.Delete("www.htm")
+            If getReserveOrder() = -1 Then Exit Sub
+        End If
         Call OutputReserveList()
 
     End Sub
@@ -639,7 +642,7 @@ Public Class Form1
     End Sub
 
     ' 予約順位を取得する     2015/08/19
-    Private function getReserveOrder()
+    Private Function getReserveOrder()
         Dim rr As reserve_t
         Dim burl As String
         Dim cnt, i, checkok, ret As Integer
@@ -659,7 +662,7 @@ Public Class Form1
         If ret = -1 Then
             MsgBox("予約順位アクセスエラー ")
             getReserveOrder = -1
-            Exit function
+            Exit Function
         End If
         System.Threading.Thread.Sleep(10000)
         checkok = 0
@@ -677,11 +680,11 @@ Public Class Form1
         Else
             MsgBox("予約順位取得エラー ")
             getReserveOrder = -1
-            Exit function
+            Exit Function
         End If
         Me.Refresh()
         getReserveOrder = 0
-    End function
+    End Function
 
     Private Sub analizeOrderHtml()
 
@@ -1065,7 +1068,7 @@ Public Class Form1
                     s = "DUP    " & bname
                     dup = dup + 1
             End Select
-            If s <> "" Then  writer.WriteLine(s)
+            If s <> "" Then writer.WriteLine(s)
         Next
         writer.Close()
         Call displayLogDate()
@@ -1384,7 +1387,7 @@ Public Class Form1
         Me.Text = "libcheck " & VERSION
         apppath = Application.StartupPath() & "\"
         lbl_state.Text = ""
-
+        get_order = False
         Call readMcode()
         Call readBookUrl()
         Call readLogDateList()
@@ -1522,5 +1525,13 @@ Public Class Form1
     ' 貸出状況ログ表示
     Private Sub cmd_rental_log_Click(sender As System.Object, e As System.EventArgs) Handles cmd_rental_log.Click
         Call displayRentalListLog()
+    End Sub
+
+    Private Sub ck_order_CheckedChanged(sender As System.Object, e As System.EventArgs) Handles ck_order.CheckedChanged
+        get_order = False
+        If ck_order.Checked = True Then
+            get_order = True
+
+        End If
     End Sub
 End Class
