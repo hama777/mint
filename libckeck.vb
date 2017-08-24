@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.04"
+    Public Const VERSION As String = "2.05"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -594,7 +594,7 @@ Public Class Form1
                         If s.IndexOf("未定") >= 0 Then
                             res.acc_date = ""
                         Else
-                            s = s.Replace("～", "")
+                            s = s.Replace("〜", "")
                             s = s.Trim
                             res.acc_date = s
                         End If
@@ -786,12 +786,15 @@ Public Class Form1
             strreserve = rr.reserve
             strorder = rr.order
             If rr.order = -1 Then strorder = "-"
+            If get_order = False Then strorder = ""
 
-            '  履歴データの処理  
-            Call manageHistotyData(rr, prevreserve, preorder, estimate_date)
-
-            If prevreserve <> -1 Then strreserve = rr.reserve & "(" & prevreserve & ")"
-            If preorder <> -1 Then strorder = rr.order & "(" & preorder & ")"
+            estimate_date = ""
+            If get_order = True Then
+                '  履歴データの処理  
+                Call manageHistotyData(rr, prevreserve, preorder, estimate_date)
+                If prevreserve <> -1 Then strreserve = rr.reserve & "(" & prevreserve & ")"
+                If preorder <> -1 Then strorder = rr.order & "(" & preorder & ")"
+            End If
 
             bname = rr.name
             bname = bname.Replace("/", " ")
@@ -811,7 +814,9 @@ Public Class Form1
         Next
         writer.WriteLine("</table><br>")
         writer.Close()
-        Call writeHistoriyLog()
+        If get_order = True Then
+            Call writeHistoriyLog()
+        End If
 
     End Sub
 
