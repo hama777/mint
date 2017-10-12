@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.05"
+    Public Const VERSION As String = "2.06"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -517,14 +517,16 @@ Public Class Form1
         i = 0
         For Each u In userlist
             cur_user = i
-            Call ReserveListCommon(u.id, u.pass)
+            If ReserveListCommon(u.id, u.pass) = -1 Then
+                Exit For
+            End If
             i = i + 1
         Next
         Call DisplayReserveList()
         lbl_state.Text = "終了"
     End Sub
 
-    Private Sub ReserveListCommon(userid As String, pass As String)
+    Private Function ReserveListCommon(userid As String, pass As String)
         Dim ckurl As String
         Dim ret As Integer
 
@@ -540,11 +542,15 @@ Public Class Form1
 
         If get_order = True Then
             System.IO.File.Delete("www.htm")
-            If getReserveOrder() = -1 Then Exit Sub
+            If getReserveOrder() = -1 Then
+                ReserveListCommon = -1
+                Exit Function
+            End If
         End If
         Call OutputReserveList()
+        ReserveListCommon = 0
 
-    End Sub
+    End Function
 
     ' 予約リストのhtml 解析
     Private Sub AnalizeReserveList()
@@ -660,7 +666,7 @@ Public Class Form1
 
         ret = siteAccess(burl)
         If ret = -1 Then
-            MsgBox("予約順位アクセスエラー ")
+            lbl_state.Text = "予約順位アクセスエラー1 "
             getReserveOrder = -1
             Exit Function
         End If
@@ -678,7 +684,7 @@ Public Class Form1
             Call analizeOrderHtml()
             lbl_state.Text = "予約順位完了 "
         Else
-            MsgBox("予約順位取得エラー ")
+            lbl_state.Text = "予約順位アクセスエラー1 "
             getReserveOrder = -1
             Exit Function
         End If
