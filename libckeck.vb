@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.06"
+    Public Const VERSION As String = "2.07"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -879,6 +879,7 @@ Public Class Form1
         For Each rr In reslist
             bname = rr.name
             bname = bname.Replace("/", " ")
+            bname = bname.Replace(";", " ")  ' 書名に ; があると区切り記号と区別できなくなるので
             s = bname & ";" & rr.code & ";" & rr.numbook & ";" & rr.reserve & ";" & rr.order
             writer.WriteLine(s)
         Next
