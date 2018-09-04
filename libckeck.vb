@@ -3,7 +3,7 @@ Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class Form1
-    Public Const VERSION As String = "2.07"
+    Public Const VERSION As String = "2.08"
     Public Const FINDURL = "https://www.lib.city.kobe.jp/opac/opacs/find_books?kanname[all-pub]=1&title="
     Public Const FINDPARM = "&btype=B&searchmode=syosai"
     Public Const LIBTOPURL = "https://www.lib.city.kobe.jp"
@@ -798,7 +798,14 @@ Public Class Form1
             If get_order = True Then
                 '  履歴データの処理  
                 Call manageHistotyData(rr, prevreserve, preorder, estimate_date)
-                If prevreserve <> -1 Then strreserve = rr.reserve & "(" & prevreserve & ")"
+                If prevreserve <> -1 Then
+                    If rr.reserve > prevreserve Then   ' 予約数が増加した場合、赤字にする
+                        strreserve = "<b><font color=red>" & rr.reserve & "</font></b>(" & prevreserve & ")"
+                    Else
+                        strreserve = rr.reserve & "(" & prevreserve & ")"
+                    End If
+
+                End If
                 If preorder <> -1 Then strorder = rr.order & "(" & preorder & ")"
             End If
 
